@@ -1,5 +1,6 @@
 package com.example.mono.service;
 
+import com.example.mono.model.ChatMessage;
 import com.example.mono.model.Room;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -37,6 +38,22 @@ public class RoomService {
             return objectMapper.readValue(response.body(), new TypeReference<List<Room>>() {});
         } else {
             throw new Exception("Nie udało się pobrać listy pokoi: " + response.statusCode());
+        }
+    }
+
+    public List<ChatMessage> getMessages(String roomId) throws Exception {
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(baseUrl + "/api/rooms/" + roomId + "/messages"))
+                .header("Authorization", "Bearer " + token)
+                .GET()
+                .build();
+
+        HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+
+        if (response.statusCode() == 200) {
+            return objectMapper.readValue(response.body(), new TypeReference<List<ChatMessage>>() {});
+        } else {
+            throw new Exception("Could not fetch message history: " + response.statusCode());
         }
     }
 

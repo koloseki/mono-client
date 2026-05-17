@@ -55,9 +55,11 @@ public class ChatWebSocketClient extends WebSocketClient {
         sub.put("id", "sub-" + subCounter.getAndIncrement());
         sub.put("destination", "/topic/room." + roomId);
         sendFrame(new StompFrame("SUBSCRIBE", sub, null));
-
-        sendSystemMessage(ChatMessage.MessageType.JOIN);
         stompReadyLatch.countDown();
+    }
+
+    public void sendJoin() {
+        sendSystemMessage(ChatMessage.MessageType.JOIN);
     }
 
     private void onStompMessage(StompFrame frame) {

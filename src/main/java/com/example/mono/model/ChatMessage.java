@@ -15,7 +15,6 @@ public class ChatMessage {
     private String roomId;
     private long timestamp;
 
-    private String receiver;
     private String fileUrl;
     private String fileName;
 

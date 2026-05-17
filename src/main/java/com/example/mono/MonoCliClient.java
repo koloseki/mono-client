@@ -1,5 +1,6 @@
 package com.example.mono;
 
+import com.example.mono.model.ChatMessage;
 import com.example.mono.model.LoginRequest;
 import com.example.mono.model.Room;
 import com.example.mono.service.RoomService;
@@ -17,6 +18,10 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Scanner;
 import java.util.concurrent.TimeUnit;
@@ -36,15 +41,16 @@ public class MonoCliClient {
     public static void main(String[] args) {
         Scanner scanner = new Scanner(System.in);
 
-        System.out.println("=================================");
+        System.out.println("/////////////////////////////////");
         System.out.println("        Mono Chat Client         ");
-        System.out.println("=================================");
+        System.out.println("/////////////////////////////////");
 
         while (sessionToken == null) {
             System.out.print("Login: ");
             String username = scanner.nextLine();
 
             System.out.print("Password: ");
+
             String password = scanner.nextLine();
 
             if (username.isBlank() || password.isBlank()) {
@@ -72,7 +78,7 @@ public class MonoCliClient {
             return;
         }
 
-        connectAndChat(selectedRoom);
+        connectAndChat(selectedRoom, roomService);
         scanner.close();
     }
 
@@ -137,7 +143,9 @@ public class MonoCliClient {
         }
     }
 
-    private static void connectAndChat(Room room) {
+    private static final DateTimeFormatter TIME_FMT = DateTimeFormatter.ofPattern("HH:mm");
+
+    private static void connectAndChat(Room room, RoomService roomService) {
         try (Terminal terminal = TerminalBuilder.builder().system(true).build()) {
             LineReader lineReader = LineReaderBuilder.builder().terminal(terminal).build();
 
@@ -159,7 +167,23 @@ public class MonoCliClient {
             }
 
             lineReader.printAbove("\n--- You are in room: " + room.getName() + " ---");
-            lineReader.printAbove("Commands: /exit (quit), /help (help)");
+
+            try {
+                List<ChatMessage> history = roomService.getMessages(room.getId());
+                if (!history.isEmpty()) {
+                    for (ChatMessage msg : history) {
+                        String time = LocalDateTime.ofInstant(
+                                Instant.ofEpochMilli(msg.getTimestamp()), ZoneId.systemDefault()
+                        ).format(TIME_FMT);
+                        lineReader.printAbove("[" + time + "] [" + msg.getSender() + "]: " + msg.getContent());
+                    }
+                }
+            } catch (Exception e) {
+                lineReader.printAbove("[Warning] Could not load message history: " + e.getMessage());
+            }
+
+            wsClient.sendJoin();
+            lineReader.printAbove("[SYSTEM] Commands: /exit (quit), /help (help)");
 
             while (wsClient.isOpen()) {
                 String input;
@@ -178,7 +202,7 @@ public class MonoCliClient {
                 }
 
                 if (input.equalsIgnoreCase("/help")) {
-                    lineReader.printAbove("Commands: /exit (quit), /help (help)");
+                    lineReader.printAbove("[SYSTEM] Commands: /exit (quit), /help (help)");
                     continue;
                 }
 
