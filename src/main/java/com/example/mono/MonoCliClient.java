@@ -3,6 +3,7 @@ package com.example.mono;
 import com.example.mono.model.ChatMessage;
 import com.example.mono.model.LoginRequest;
 import com.example.mono.model.Room;
+import com.example.mono.service.FileService;
 import com.example.mono.service.RoomService;
 import com.example.mono.util.AuthResponse;
 import com.example.mono.websocket.ChatWebSocketClient;
@@ -18,11 +19,14 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Map;
 import java.util.Scanner;
 import java.util.concurrent.TimeUnit;
 
@@ -183,7 +187,8 @@ public class MonoCliClient {
             }
 
             wsClient.sendJoin();
-            lineReader.printAbove("[SYSTEM] Commands: /exit (quit), /help (help)");
+            FileService fileService = new FileService(BASE_URL, sessionToken);
+            lineReader.printAbove("[SYSTEM] Commands: /exit, /help, /upload <path>, /download <filename>");
 
             while (wsClient.isOpen()) {
                 String input;
@@ -202,7 +207,33 @@ public class MonoCliClient {
                 }
 
                 if (input.equalsIgnoreCase("/help")) {
-                    lineReader.printAbove("[SYSTEM] Commands: /exit (quit), /help (help)");
+                    lineReader.printAbove("[SYSTEM] Commands: /exit, /help, /upload <path>, /download <filename>");
+                    continue;
+                }
+
+                if (input.startsWith("/upload ")) {
+                    String pathStr = input.substring(8).trim();
+                    try {
+                        Path filePath = Paths.get(pathStr);
+                        lineReader.printAbove("[System] Uploading " + filePath.getFileName() + "...");
+                        Map<String, String> result = fileService.upload(filePath);
+                        wsClient.sendFileMessage(result.get("fileUrl"), result.get("originalName"), room.getId());
+                        lineReader.printAbove("[System] Upload successful: " + result.get("originalName"));
+                    } catch (Exception e) {
+                        lineReader.printAbove("[Error] Upload failed: " + e.getMessage());
+                    }
+                    continue;
+                }
+
+                if (input.startsWith("/download ")) {
+                    String filename = input.substring(10).trim();
+                    try {
+                        Path target = Paths.get(filename);
+                        fileService.download(filename, target);
+                        lineReader.printAbove("[System] Downloaded: " + target.toAbsolutePath());
+                    } catch (Exception e) {
+                        lineReader.printAbove("[Error] Download failed: " + e.getMessage());
+                    }
                     continue;
                 }
 

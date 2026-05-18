@@ -66,7 +66,9 @@ public class ChatWebSocketClient extends WebSocketClient {
         try {
             ChatMessage msg = objectMapper.readValue(frame.getBody(), ChatMessage.class);
             String line = switch (msg.getType()) {
-                case CHAT   -> "[" + msg.getSender() + "]: " + msg.getContent();
+                case CHAT -> msg.getFileUrl() != null
+                        ? "[" + msg.getSender() + "] sent a file: " + msg.getFileName() + " (/download " + msg.getFileName() + ")"
+                        : "[" + msg.getSender() + "]: " + msg.getContent();
                 case JOIN   -> "[SYSTEM] " + msg.getSender() + " joined the room";
                 case LEAVE  -> "[SYSTEM] " + msg.getSender() + " left the room";
                 case SYSTEM -> "[SYSTEM] " + msg.getContent();
@@ -74,6 +76,21 @@ public class ChatWebSocketClient extends WebSocketClient {
             messageHandler.accept(line);
         } catch (Exception e) {
             messageHandler.accept("[Error] Could not parse message: " + e.getMessage());
+        }
+    }
+
+    public void sendFileMessage(String fileUrl, String fileName, String roomId) {
+        try {
+            ChatMessage msg = new ChatMessage();
+            msg.setSender(username);
+            msg.setType(ChatMessage.MessageType.CHAT);
+            msg.setRoomId(roomId);
+            msg.setFileUrl(fileUrl);
+            msg.setFileName(fileName);
+            msg.setTimestamp(System.currentTimeMillis());
+            sendToApp(msg);
+        } catch (Exception e) {
+            System.err.println("[Error] Could not send file message: " + e.getMessage());
         }
     }
 
